@@ -132,7 +132,7 @@ export async function POST(request: NextRequest) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "meta-llama/llama-4-scout:free",
+        model: "google/gemma-4-27b-it:free",
         messages: [
           {
             role: "user",
