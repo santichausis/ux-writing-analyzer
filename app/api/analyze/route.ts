@@ -1,4 +1,4 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextRequest, NextResponse } from "next/server";
 
 const UX_WRITING_KNOWLEDGE = `
@@ -107,10 +107,10 @@ const UX_WRITING_KNOWLEDGE = `
 
 export async function POST(request: NextRequest) {
   try {
-    const apiKey = process.env.ANTHROPIC_API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
       return NextResponse.json(
-        { error: "ANTHROPIC_API_KEY no está configurada en las variables de entorno." },
+        { error: "GEMINI_API_KEY no está configurada en las variables de entorno." },
         { status: 500 }
       );
     }
@@ -124,24 +124,18 @@ export async function POST(request: NextRequest) {
 
     const bytes = await imageFile.arrayBuffer();
     const base64 = Buffer.from(bytes).toString("base64");
-    const mediaType = imageFile.type as "image/jpeg" | "image/png" | "image/gif" | "image/webp";
 
-    const client = new Anthropic({ apiKey });
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-    const response = await client.messages.create({
-      model: "claude-sonnet-4-6",
-      max_tokens: 2048,
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "image",
-              source: { type: "base64", media_type: mediaType, data: base64 },
-            },
-            {
-              type: "text",
-              text: `Sos un experto en UX Writing. Analizá esta imagen de un formulario o pantalla y comparala contra la siguiente base de conocimiento de UX Writing para textfields de datos personales:
+    const result = await model.generateContent([
+      {
+        inlineData: {
+          mimeType: imageFile.type as "image/jpeg" | "image/png" | "image/webp",
+          data: base64,
+        },
+      },
+      `Sos un experto en UX Writing. Analizá esta imagen de un formulario o pantalla y comparala contra la siguiente base de conocimiento de UX Writing para textfields de datos personales:
 
 ${UX_WRITING_KNOWLEDGE}
 
@@ -153,18 +147,14 @@ Tu análisis debe:
 5. Dar un resumen final con el porcentaje de cumplimiento
 
 Respondé en español, con formato estructurado y claro. Si la imagen no contiene ningún campo de datos personales, indicalo.`,
-            },
-          ],
-        },
-      ],
-    });
+    ]);
 
-    const analysis = response.content[0].type === "text" ? response.content[0].text : "";
+    const analysis = result.response.text();
     return NextResponse.json({ analysis });
   } catch (error) {
     console.error("Error analyzing image:", error);
     return NextResponse.json(
-      { error: "Error al analizar la imagen. Verificá que ANTHROPIC_API_KEY esté configurada." },
+      { error: "Error al analizar la imagen. Verificá que GEMINI_API_KEY esté configurada." },
       { status: 500 }
     );
   }
