@@ -77,6 +77,19 @@ export default function Home() {
   const [history, setHistory] = useState<AnalysisEntry[]>([]);
   const [selectedEntry, setSelectedEntry] = useState<AnalysisEntry | null>(null);
 
+  // Restore last analysis from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("ux_last_analysis");
+      if (saved) {
+        const { analysis: a, thumbnail: t, preview: p } = JSON.parse(saved);
+        if (a) setAnalysis(a);
+        if (t) setThumbnail(t);
+        if (p) setPreview(p);
+      }
+    } catch {}
+  }, []);
+
   useEffect(() => {
     fetch("/api/history")
       .then((r) => r.json())
@@ -136,6 +149,7 @@ export default function Home() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Error desconocido");
       setAnalysis(data.analysis);
+      try { localStorage.setItem("ux_last_analysis", JSON.stringify({ analysis: data.analysis, thumbnail, preview })); } catch {}
       refreshHistory();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al analizar");
@@ -158,6 +172,7 @@ export default function Home() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Error desconocido");
       setAnalysis(data.analysis);
+      try { localStorage.setItem("ux_last_analysis", JSON.stringify({ analysis: data.analysis, thumbnail: null, preview: null })); } catch {}
       refreshHistory();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al analizar");
@@ -285,7 +300,7 @@ export default function Home() {
                 )}
               </button>
               {image && tab === "image" && (
-                <button onClick={() => { setImage(null); setPreview(null); setThumbnail(null); setAnalysis(null); setError(null); }}
+                <button onClick={() => { setImage(null); setPreview(null); setThumbnail(null); setAnalysis(null); setError(null); try { localStorage.removeItem("ux_last_analysis"); } catch {} }}
                   className="mt-2 w-full py-2 text-xs rounded-lg" style={{ color: "var(--personal-gray)" }}>
                   Limpiar imagen
                 </button>
