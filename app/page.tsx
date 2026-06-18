@@ -36,10 +36,10 @@ function timeAgo(ts: number) {
 
 const markdownComponents = {
   h1: ({ children }: React.HTMLAttributes<HTMLHeadingElement>) => (
-    <h1 className="text-base font-bold mt-5 mb-2 pt-4 border-t first:border-t-0 first:mt-0 first:pt-0" style={{ color: "var(--personal-dark)", borderColor: "var(--personal-light-gray)" }}>{children}</h1>
+    <h1 className="text-base font-bold mt-5 mb-2 pt-4 border-t first:border-t-0 first:mt-0 first:pt-0" style={{ color: "var(--personal-dark)", borderColor: "var(--personal-border)" }}>{children}</h1>
   ),
   h2: ({ children }: React.HTMLAttributes<HTMLHeadingElement>) => (
-    <h2 className="text-sm font-bold mt-5 mb-2 pt-4 border-t first:border-t-0 first:mt-0 first:pt-0" style={{ color: "var(--personal-dark)", borderColor: "var(--personal-light-gray)" }}>{children}</h2>
+    <h2 className="text-sm font-bold mt-5 mb-2 pt-4 border-t first:border-t-0 first:mt-0 first:pt-0" style={{ color: "var(--personal-dark)", borderColor: "var(--personal-border)" }}>{children}</h2>
   ),
   h3: ({ children }: React.HTMLAttributes<HTMLHeadingElement>) => (
     <h3 className="text-sm font-semibold mt-3 mb-1" style={{ color: "var(--personal-blue)" }}>{children}</h3>
@@ -60,26 +60,26 @@ const markdownComponents = {
     </li>
   ),
   table: ({ children }: React.HTMLAttributes<HTMLTableElement>) => (
-    <div className="overflow-x-auto mb-4 rounded-xl border" style={{ borderColor: "var(--personal-light-gray)" }}>
+    <div className="overflow-x-auto mb-4 rounded-xl border" style={{ borderColor: "var(--personal-border)" }}>
       <table className="w-full text-xs border-collapse">{children}</table>
     </div>
   ),
   thead: ({ children }: React.HTMLAttributes<HTMLTableSectionElement>) => (
-    <thead style={{ background: "var(--personal-light-gray)" }}>{children}</thead>
+    <thead style={{ background: "var(--personal-bg-bold)" }}>{children}</thead>
   ),
   th: ({ children }: React.HTMLAttributes<HTMLTableCellElement>) => (
     <th className="px-3 py-2 text-left font-semibold" style={{ color: "var(--personal-dark)" }}>{children}</th>
   ),
   td: ({ children }: React.HTMLAttributes<HTMLTableCellElement>) => (
-    <td className="px-3 py-2 border-t text-xs" style={{ borderColor: "var(--personal-light-gray)", color: "#374151" }}>{children}</td>
+    <td className="px-3 py-2 border-t text-xs" style={{ borderColor: "var(--personal-border)", color: "#374151" }}>{children}</td>
   ),
   blockquote: ({ children }: React.HTMLAttributes<HTMLQuoteElement>) => (
     <blockquote className="border-l-4 pl-3 py-1 my-2 text-sm italic" style={{ borderColor: "var(--personal-accent)", color: "#6b7280" }}>{children}</blockquote>
   ),
   code: ({ children }: React.HTMLAttributes<HTMLElement>) => (
-    <code className="px-1.5 py-0.5 rounded text-xs font-mono" style={{ background: "var(--personal-light-gray)", color: "var(--personal-blue)" }}>{children}</code>
+    <code className="px-1.5 py-0.5 rounded text-xs font-mono" style={{ background: "var(--personal-bg-bold)", color: "var(--personal-blue)" }}>{children}</code>
   ),
-  hr: () => <hr className="my-4" style={{ borderColor: "var(--personal-light-gray)" }} />,
+  hr: () => <hr className="my-4" style={{ borderColor: "var(--personal-border)" }} />,
 };
 
 // Highlight severity badges inline in the markdown text
@@ -238,10 +238,10 @@ export default function Home() {
       </header>
 
       {/* Hero */}
-      <section className="w-full py-14 px-6" style={{ background: "linear-gradient(135deg, var(--personal-dark) 0%, var(--personal-blue) 100%)" }}>
+      <section className="w-full py-14 px-6" style={{ background: "linear-gradient(135deg, var(--personal-navy) 0%, var(--personal-blue) 100%)" }}>
         <div className="max-w-5xl mx-auto text-center">
           <h1 className="text-white font-bold text-3xl md:text-4xl leading-tight mb-4">Analizá tus pantallas de UX Writing</h1>
-          <p className="text-blue-200 text-base md:text-lg max-w-xl mx-auto">
+          <p className="text-base md:text-lg max-w-xl mx-auto" style={{ color: "var(--personal-blue-soft)" }}>
             Subí una imagen o pegá un link de Figma y verificá si los textfields de datos personales cumplen con los estándares definidos.
           </p>
           <div className="flex flex-wrap gap-2 justify-center mt-6">
@@ -257,8 +257,8 @@ export default function Home() {
         <div className="grid md:grid-cols-2 gap-8 items-start">
 
           {/* Input panel */}
-          <div className="rounded-2xl overflow-hidden shadow-sm border" style={{ background: "white", borderColor: "var(--personal-light-gray)" }}>
-            <div className="flex border-b" style={{ borderColor: "var(--personal-light-gray)" }}>
+          <div className="rounded-2xl overflow-hidden shadow-sm border" style={{ background: "var(--personal-white)", borderColor: "var(--personal-border)" }}>
+            <div className="flex border-b" style={{ borderColor: "var(--personal-border)" }}>
               {(["image", "figma"] as Tab[]).map((t) => (
                 <button key={t} onClick={() => { setTab(t); setAnalysis(null); setError(null); }}
                   className="flex-1 py-4 text-sm font-medium transition-colors flex items-center justify-center gap-2"
@@ -289,8 +289,8 @@ export default function Home() {
                       <div className="relative w-full h-52"><Image src={preview} alt="Preview" fill className="object-contain rounded-lg" /></div>
                     ) : (
                       <div className="flex flex-col items-center gap-3 py-8 px-4 text-center">
-                        <div className="w-14 h-14 rounded-full flex items-center justify-center" style={{ background: "var(--personal-light-gray)" }}>
-                          <svg width="28" height="28" fill="none" viewBox="0 0 24 24"><path d="M12 16V8m0 0-3 3m3-3 3 3M4 16v1a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-1" stroke="#0032a0" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                        <div className="w-14 h-14 rounded-full flex items-center justify-center" style={{ background: "var(--personal-bg-bold)" }}>
+                          <svg width="28" height="28" fill="none" viewBox="0 0 24 24"><path d="M12 16V8m0 0-3 3m3-3 3 3M4 16v1a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-1" stroke="#0076c7" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
                         </div>
                         <div>
                           <p className="font-medium text-sm" style={{ color: "var(--personal-blue)" }}>Arrastrá una imagen aquí</p>
@@ -350,12 +350,13 @@ export default function Home() {
           </div>
 
           {/* Results panel */}
-          <div className="rounded-2xl overflow-hidden shadow-sm border" style={{ background: "white", borderColor: "var(--personal-light-gray)", minHeight: "360px" }}>
-            <div className="px-6 pt-5 pb-4 border-b" style={{ borderColor: "var(--personal-light-gray)" }}>
+          <div className="rounded-2xl overflow-hidden shadow-sm border" style={{ background: "white", borderColor: "var(--personal-border)", minHeight: "360px" }}>
+            <div className="px-6 pt-5 pb-4 border-b" style={{ borderColor: "var(--personal-border)" }}>
               <h2 className="font-semibold text-base" style={{ color: "var(--personal-dark)" }}>Resultado del análisis</h2>
               <div className="flex flex-wrap gap-1.5 mt-2">
                 {["Contenido", "Consistencia", "Reglas", "Huecos", "Voz/tono", "Formato"].map((d) => (
-                  <span key={d} className="text-xs px-2 py-0.5 rounded-full" style={{ background: "var(--personal-light-gray)", color: "var(--personal-blue)" }}>{d}</span>
+                  <span key={d} className="text-xs px-2 py-0.5 rounded-full" style={{ background: "var(--personal-bg-bold)", color: "var(--personal-blue)" }}>{d}</span>
+
                 ))}
               </div>
             </div>
@@ -370,7 +371,7 @@ export default function Home() {
               )}
               {isLoading && (
                 <div className="flex flex-col items-center justify-center h-56 gap-4">
-                  <div className="w-12 h-12 rounded-full border-4 animate-spin" style={{ borderColor: "var(--personal-light-gray)", borderTopColor: "var(--personal-blue)" }}/>
+                  <div className="w-12 h-12 rounded-full border-4 animate-spin" style={{ borderColor: "var(--personal-border)", borderTopColor: "var(--personal-blue)" }}/>
                   <p className="text-sm" style={{ color: "var(--personal-gray)" }}>Procesando con IA...</p>
                 </div>
               )}
@@ -393,15 +394,15 @@ export default function Home() {
           <section className="mt-14">
             <div className="flex items-center gap-3 mb-6">
               <h2 className="font-bold text-lg" style={{ color: "var(--personal-dark)" }}>Últimos análisis</h2>
-              <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "var(--personal-light-gray)", color: "var(--personal-blue)" }}>{history.length}</span>
+              <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "var(--personal-bg-bold)", color: "var(--personal-blue)" }}>{history.length}</span>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
               {history.map((entry) => (
                 <button key={entry.id} onClick={() => setSelectedEntry(entry)}
                   className="rounded-xl overflow-hidden border text-left transition-all hover:shadow-md hover:-translate-y-0.5 duration-150"
-                  style={{ background: "white", borderColor: "var(--personal-light-gray)" }}
+                  style={{ background: "var(--personal-white)", borderColor: "var(--personal-border)" }}
                 >
-                  <div className="relative w-full h-28" style={{ background: "var(--personal-light-gray)" }}>
+                  <div className="relative w-full h-28" style={{ background: "var(--personal-bg-bold)" }}>
                     {entry.thumbnail ? (
                       <Image src={entry.thumbnail} alt="Análisis" fill className="object-cover" unoptimized />
                     ) : (
@@ -440,7 +441,7 @@ export default function Home() {
           onClick={(e) => { if (e.target === e.currentTarget) setSelectedEntry(null); }}
         >
           <div className="w-full max-w-3xl rounded-2xl overflow-hidden shadow-2xl flex flex-col md:flex-row" style={{ background: "white", maxHeight: "90vh" }}>
-            <div className="md:w-48 flex-shrink-0 relative min-h-40" style={{ background: "var(--personal-light-gray)" }}>
+            <div className="md:w-48 flex-shrink-0 relative min-h-40" style={{ background: "var(--personal-bg-bold)" }}>
               {selectedEntry.thumbnail ? (
                 <Image src={selectedEntry.thumbnail} alt="Análisis" fill className="object-cover" unoptimized />
               ) : (
@@ -450,7 +451,7 @@ export default function Home() {
               )}
             </div>
             <div className="flex flex-col flex-1 overflow-hidden">
-              <div className="px-6 py-4 border-b flex items-start justify-between gap-4" style={{ borderColor: "var(--personal-light-gray)" }}>
+              <div className="px-6 py-4 border-b flex items-start justify-between gap-4" style={{ borderColor: "var(--personal-border)" }}>
                 <div>
                   <p className="font-semibold text-sm" style={{ color: "var(--personal-dark)" }}>
                     {selectedEntry.filename || selectedEntry.figmaUrl || "Análisis"}

@@ -1,53 +1,55 @@
 @import "tailwindcss";
 
+/* ── Tokens reales extraídos del Design System de Personal ── */
 :root {
-  --personal-blue: #0032a0;
-  --personal-dark: #001a5c;
-  --personal-light-blue: #0050d8;
-  --personal-accent: #00c8ff;
-  --personal-bg: #f5f7ff;
-  --personal-white: #ffffff;
-  --personal-gray: #6b7280;
-  --personal-light-gray: #e8ecf5;
-  --background: #f5f7ff;
-  --foreground: #1a1a2e;
+  /* Brand */
+  --personal-blue:        #0076c7;   /* background-brand-primary-bold */
+  --personal-blue-mid:    #1eb2f5;   /* divider-brand-primary-medium / key-general-primary-personal */
+  --personal-blue-soft:   #c8eeff;   /* background-brand-primary-medium */
+  --personal-blue-xsoft:  #e8f8ff;   /* background-brand-primary-soft */
+  --personal-dark:        #052c50;   /* background-modal-bold / background-snackbar */
+  --personal-navy:        #261572;   /* key-general-primary-flow / key-general-secondary */
+  --personal-purple:      #5a49ca;   /* background-brand-secondary-bold */
+
+  /* Surfaces */
+  --personal-bg:          #faf9fb;   /* background-general-soft */
+  --personal-bg-bold:     #f0eff1;   /* background-general-bold */
+  --personal-white:       #ffffff;
+  --personal-black:       #121212;   /* key-general-black */
+
+  /* Text */
+  --personal-text:        #222;      /* text-icon-general-alt-black */
+  --personal-gray:        #77767a;   /* toggle-off / mid gray */
+  --personal-gray-soft:   #919094;   /* alt-disabled / alt-info */
+
+  /* Borders / Dividers */
+  --personal-border:      #e3e1e6;   /* divider-general-soft */
+  --personal-border-mid:  #c8c6ca;   /* divider-general-medium */
+
+  /* Semantic */
+  --personal-error:       #ba1b1b;
+  --personal-error-soft:  #ffdad4;
+  --personal-warning:     #fbbc29;
+  --personal-warning-soft:#ffefd3;
+  --personal-success:     #01893d;
+  --personal-success-soft:#cef9d5;
+
+  /* Legacy aliases (keep for compat) */
+  --personal-light-gray:  #e3e1e6;
+  --personal-accent:      #1eb2f5;
+  --personal-light-blue:  #1eb2f5;
+
+  --background: var(--personal-bg);
+  --foreground: var(--personal-text);
 }
 
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: "Roboto", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   margin: 0;
   padding: 0;
-}
-
-.prose-result h3 {
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--personal-dark);
-  margin-top: 1.25rem;
-  margin-bottom: 0.5rem;
-}
-
-.prose-result p {
-  margin-bottom: 0.75rem;
-  line-height: 1.6;
-}
-
-.prose-result ul {
-  padding-left: 1.5rem;
-  margin-bottom: 0.75rem;
-}
-
-.prose-result li {
-  margin-bottom: 0.35rem;
-  line-height: 1.5;
-}
-
-.prose-result strong {
-  color: var(--personal-dark);
+  -webkit-font-smoothing: antialiased;
 }
