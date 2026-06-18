@@ -104,46 +104,7 @@ const UX_WRITING_KNOWLEDGE = `
 - Máximo 10 dígitos, no permite más.
 `;
 
-export async function POST(request: NextRequest) {
-  try {
-    const apiKey = process.env.OPENROUTER_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json(
-        { error: "OPENROUTER_API_KEY no está configurada en las variables de entorno." },
-        { status: 500 }
-      );
-    }
-
-    const formData = await request.formData();
-    const imageFile = formData.get("image") as File;
-
-    if (!imageFile) {
-      return NextResponse.json({ error: "No se recibió imagen" }, { status: 400 });
-    }
-
-    const bytes = await imageFile.arrayBuffer();
-    const base64 = Buffer.from(bytes).toString("base64");
-    const mimeType = imageFile.type || "image/jpeg";
-
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "nvidia/nemotron-nano-12b-v2-vl:free",
-        messages: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "image_url",
-                image_url: { url: `data:${mimeType};base64,${base64}` },
-              },
-              {
-                type: "text",
-                text: `Sos un experto en UX Writing. Analizá esta imagen de un formulario o pantalla y comparala contra la siguiente base de conocimiento de UX Writing para textfields de datos personales:
+const PROMPT = `Sos un experto en UX Writing. Analizá esta imagen de un formulario o pantalla y comparala contra la siguiente base de conocimiento de UX Writing para textfields de datos personales:
 
 ${UX_WRITING_KNOWLEDGE}
 
@@ -154,25 +115,127 @@ Tu análisis debe:
 4. Si hay diferencias, indicar cuál es el texto correcto según la base de conocimiento
 5. Dar un resumen final con el porcentaje de cumplimiento
 
-Respondé en español, con formato estructurado y claro. Si la imagen no contiene ningún campo de datos personales, indicalo.`,
-              },
-            ],
-          },
-        ],
-      }),
-    });
+Respondé en español, con formato estructurado y claro. Si la imagen no contiene ningún campo de datos personales, indicalo.`;
 
-    if (!response.ok) {
-      const err = await response.text();
-      throw new Error(`OpenRouter ${response.status}: ${err}`);
+function parseFigmaUrl(url: string): { fileKey: string; nodeId: string } | null {
+  try {
+    const u = new URL(url);
+    // Supports /file/KEY/... and /design/KEY/...
+    const match = u.pathname.match(/\/(file|design)\/([^/]+)/);
+    if (!match) return null;
+    const fileKey = match[2];
+    const nodeId = u.searchParams.get("node-id");
+    if (!nodeId) return null;
+    return { fileKey, nodeId };
+  } catch {
+    return null;
+  }
+}
+
+async function fetchFigmaImageAsBase64(fileKey: string, nodeId: string, token: string): Promise<{ base64: string; mimeType: string }> {
+  // Get the render URL from Figma
+  const renderRes = await fetch(
+    `https://api.figma.com/v1/images/${fileKey}?ids=${encodeURIComponent(nodeId)}&format=png&scale=2`,
+    { headers: { "X-Figma-Token": token } }
+  );
+  if (!renderRes.ok) {
+    const err = await renderRes.text();
+    throw new Error(`Figma API ${renderRes.status}: ${err}`);
+  }
+  const renderData = await renderRes.json();
+  const imageUrl = renderData.images?.[nodeId] ?? renderData.images?.[nodeId.replace("-", ":")];
+
+  if (!imageUrl) {
+    throw new Error("Figma no devolvió una imagen para ese nodo. Verificá que el node-id sea correcto.");
+  }
+
+  // Download the rendered image
+  const imgRes = await fetch(imageUrl);
+  if (!imgRes.ok) throw new Error(`Error descargando imagen de Figma: ${imgRes.status}`);
+  const buffer = await imgRes.arrayBuffer();
+  return {
+    base64: Buffer.from(buffer).toString("base64"),
+    mimeType: "image/png",
+  };
+}
+
+async function analyzeWithOpenRouter(base64: string, mimeType: string, apiKey: string): Promise<string> {
+  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "nvidia/nemotron-nano-12b-v2-vl:free",
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64}` } },
+            { type: "text", text: PROMPT },
+          ],
+        },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(`OpenRouter ${response.status}: ${err}`);
+  }
+  const data = await response.json();
+  return data.choices?.[0]?.message?.content ?? "";
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const openrouterKey = process.env.OPENROUTER_API_KEY;
+    if (!openrouterKey) {
+      return NextResponse.json({ error: "OPENROUTER_API_KEY no está configurada." }, { status: 500 });
     }
 
-    const data = await response.json();
-    const analysis = data.choices?.[0]?.message?.content ?? "";
+    const contentType = request.headers.get("content-type") ?? "";
+
+    // --- Figma URL mode ---
+    if (contentType.includes("application/json")) {
+      const { figmaUrl, figmaToken } = await request.json();
+
+      const token = figmaToken || process.env.FIGMA_TOKEN;
+      if (!token) {
+        return NextResponse.json({ error: "Se necesita un Figma Personal Access Token." }, { status: 400 });
+      }
+
+      const parsed = parseFigmaUrl(figmaUrl);
+      if (!parsed) {
+        return NextResponse.json(
+          { error: "URL de Figma inválida. Debe incluir el node-id (ej: ?node-id=118:10566)." },
+          { status: 400 }
+        );
+      }
+
+      const { base64, mimeType } = await fetchFigmaImageAsBase64(parsed.fileKey, parsed.nodeId, token);
+      const analysis = await analyzeWithOpenRouter(base64, mimeType, openrouterKey);
+      return NextResponse.json({ analysis });
+    }
+
+    // --- Image upload mode ---
+    const formData = await request.formData();
+    const imageFile = formData.get("image") as File;
+    if (!imageFile) {
+      return NextResponse.json({ error: "No se recibió imagen" }, { status: 400 });
+    }
+
+    const bytes = await imageFile.arrayBuffer();
+    const base64 = Buffer.from(bytes).toString("base64");
+    const mimeType = imageFile.type || "image/jpeg";
+
+    const analysis = await analyzeWithOpenRouter(base64, mimeType, openrouterKey);
     return NextResponse.json({ analysis });
+
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
-    console.error("Error analyzing image:", msg);
-    return NextResponse.json({ error: `Error al analizar la imagen: ${msg}` }, { status: 500 });
+    console.error("Error analyzing:", msg);
+    return NextResponse.json({ error: `Error al analizar: ${msg}` }, { status: 500 });
   }
 }
