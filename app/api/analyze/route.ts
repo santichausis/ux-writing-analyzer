@@ -215,14 +215,15 @@ async function analyzeWithOpenRouter(base64: string, mimeType: string, apiKey: s
 }
 
 async function saveToHistory(entry: AnalysisEntry) {
-  try {
-    const redis = getRedis();
-    if (!redis) return;
-    await redis.lpush("ux_analyses", JSON.stringify(entry));
-    await redis.ltrim("ux_analyses", 0, 19); // keep last 20
-  } catch (e) {
-    console.error("Redis save error:", e);
-  }
+  const redis = getRedis();
+  if (!redis) return;
+  // Strip thumbnail if too large to avoid Redis size issues
+  const safe: AnalysisEntry = {
+    ...entry,
+    thumbnail: entry.thumbnail && entry.thumbnail.length < 50000 ? entry.thumbnail : "",
+  };
+  await redis.lpush("ux_analyses", JSON.stringify(safe));
+  await redis.ltrim("ux_analyses", 0, 19);
 }
 
 export async function POST(request: NextRequest) {
@@ -249,7 +250,7 @@ export async function POST(request: NextRequest) {
       await saveToHistory({
         id: crypto.randomUUID(),
         timestamp: Date.now(),
-        thumbnail: thumbnail || `data:image/png;base64,${base64.slice(0, 8000)}`,
+        thumbnail: thumbnail || "",
         analysis,
         source: "figma",
         figmaUrl,
@@ -274,7 +275,7 @@ export async function POST(request: NextRequest) {
     await saveToHistory({
       id: crypto.randomUUID(),
       timestamp: Date.now(),
-      thumbnail: thumbnail || `data:${mimeType};base64,${base64.slice(0, 8000)}`,
+      thumbnail: thumbnail || "",
       analysis,
       source: "image",
       filename: imageFile.name,
