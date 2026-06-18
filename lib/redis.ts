@@ -1,4 +1,7 @@
 import { Redis } from "@upstash/redis";
+import type { AnalysisEntry } from "./types";
+
+export type { AnalysisEntry };
 
 let redis: Redis | null = null;
 
@@ -13,14 +16,4 @@ export function getRedis(): Redis | null {
     });
   }
   return redis;
-}
-
-export interface AnalysisEntry {
-  id: string;
-  timestamp: number;
-  thumbnail: string; // small base64 data URL
-  analysis: string;
-  source: "image" | "figma";
-  figmaUrl?: string;
-  filename?: string;
 }
