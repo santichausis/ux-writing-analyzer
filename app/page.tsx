@@ -84,13 +84,13 @@ const markdownComponents = {
 
 // Highlight severity badges inline in the markdown text
 function EnhancedMarkdown({ content }: { content: string }) {
-  // Pre-process: add visual markers for severity lines
   const processed = content
-    .replace(/- Severidad:\s*Alta/gi, "- 🔴 **Severidad: Alta**")
-    .replace(/- Severidad:\s*Media/gi, "- 🟡 **Severidad: Media**")
-    .replace(/- Severidad:\s*Baja/gi, "- 🟢 **Severidad: Baja**")
-    .replace(/- ¿Requiere validación\?:\s*Sí/gi, "- ⚠️ **¿Requiere validación?: Sí**")
-    .replace(/- ¿Requiere validación\?:\s*No/gi, "- ✅ **¿Requiere validación?: No**");
+    // Catch all variants: "- Severidad: Alta", "- **Severidad:** Alta", "- **Severidad: Alta**", etc.
+    .replace(/[-*]\s*\**Severidad:\**\s*\**Alta\**/gi, "- 🔴 **Severidad: Alta**")
+    .replace(/[-*]\s*\**Severidad:\**\s*\**Media\**/gi, "- 🟡 **Severidad: Media**")
+    .replace(/[-*]\s*\**Severidad:\**\s*\**Baja\**/gi, "- 🟢 **Severidad: Baja**")
+    .replace(/[-*]\s*\**¿Requiere validación\?:\**\s*\**Sí\**/gi, "- ⚠️ **¿Requiere validación?: Sí**")
+    .replace(/[-*]\s*\**¿Requiere validación\?:\**\s*\**No\**/gi, "- ✅ **¿Requiere validación?: No**");
 
   return (
     <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
