@@ -132,7 +132,7 @@ export async function POST(request: NextRequest) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "meta-llama/llama-4-maverick:free",
+        model: "meta-llama/llama-4-scout:free",
         messages: [
           {
             role: "user",
