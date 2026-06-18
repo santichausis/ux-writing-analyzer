@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getRedis, type AnalysisEntry } from "@/lib/redis";
 
 const UX_WRITING_KNOWLEDGE = `
 # Base de Conocimiento: UX Writing — Datos Personales
@@ -104,23 +105,56 @@ const UX_WRITING_KNOWLEDGE = `
 - Máximo 10 dígitos, no permite más.
 `;
 
-const PROMPT = `Sos un experto en UX Writing. Analizá esta imagen de un formulario o pantalla y comparala contra la siguiente base de conocimiento de UX Writing para textfields de datos personales:
+const SYSTEM_PROMPT = `Sos un especialista en UX writing y sistemas de diseño. Analizás bases de
+conocimiento de textfields/contenido de UI en español rioplatense (voseo).
 
-${UX_WRITING_KNOWLEDGE}
+Evaluá la imagen que te paso SIEMPRE contra estas 6 dimensiones, en este
+orden, sin agregar ni omitir ninguna:
+1. Errores de contenido (copy incorrecto o que perjudica al usuario).
+2. Consistencia (estructura de mensajes, terminología, voseo, patrones).
+3. Reglas implícitas no documentadas.
+4. Huecos (campos sin especificar, reglas vacías, instrucciones sin ejemplo).
+5. Documentación transversal (principios, voz/tono, accesibilidad, placeholder).
+6. Formato del documento (índice, tablas, glosario, changelog).
 
-Tu análisis debe:
-1. Identificar qué campos de datos personales aparecen en la imagen (nombre, apellido, DNI, email, teléfono, número de trámite, etc.)
-2. Para cada campo encontrado, verificar si el label, supporting text y mensajes de error (si son visibles) coinciden con los estándares definidos
-3. Marcar con ✅ lo que está correcto y con ❌ lo que está incorrecto o difiere del estándar
-4. Si hay diferencias, indicar cuál es el texto correcto según la base de conocimiento
-5. Dar un resumen final con el porcentaje de cumplimiento
+Clasificá cada hallazgo con esta escala de severidad:
+- Alta: afecta al usuario final o rompe una función (dato válido rechazado, instrucción falsa).
+- Media: ambigüedad para quien implementa/autorea, sin romper la experiencia.
+- Baja: mejora de formato/documentación sin cambio de comportamiento.
 
-Respondé en español, con formato estructurado y claro. Si la imagen no contiene ningún campo de datos personales, indicalo.`;
+Devolvé SIEMPRE en este formato, sin variar la estructura:
+
+## Resumen ejecutivo
+[2-3 oraciones]
+
+## Hallazgos
+Por cada dimensión con hallazgos, listá cada uno con estos campos exactos:
+- Severidad:
+- Ubicación:
+- Problema:
+- Recomendación:
+- ¿Requiere validación?: (Sí si cambia copy visible o regla de negocio; No si es una mejora estructural segura)
+
+## Pendientes
+Tabla con todo lo marcado como "Requiere validación: Sí", columnas:
+# | Tema | Detalle | Quién decide
+
+## Changelog
+Entrada con fecha y versión propuesta.
+
+Reglas:
+- No cambies copy visible al usuario por tu cuenta: marcalo como propuesta con "¿Requiere validación?: Sí".
+- Respetá el voseo del producto.
+- Si una instrucción dice "cambia según X" pero no da ejemplos, es un hueco.
+- No inventes reglas de negocio que no estén en el documento.
+
+La base de conocimiento de referencia es:
+
+${UX_WRITING_KNOWLEDGE}`;
 
 function parseFigmaUrl(url: string): { fileKey: string; nodeId: string } | null {
   try {
     const u = new URL(url);
-    // Supports /file/KEY/... and /design/KEY/...
     const match = u.pathname.match(/\/(file|design)\/([^/]+)/);
     if (!match) return null;
     const fileKey = match[2];
@@ -132,8 +166,7 @@ function parseFigmaUrl(url: string): { fileKey: string; nodeId: string } | null 
   }
 }
 
-async function fetchFigmaImageAsBase64(fileKey: string, nodeId: string, token: string): Promise<{ base64: string; mimeType: string }> {
-  // Get the render URL from Figma
+async function fetchFigmaImageAsBase64(fileKey: string, nodeId: string, token: string) {
   const renderRes = await fetch(
     `https://api.figma.com/v1/images/${fileKey}?ids=${encodeURIComponent(nodeId)}&format=png&scale=2`,
     { headers: { "X-Figma-Token": token } }
@@ -143,29 +176,22 @@ async function fetchFigmaImageAsBase64(fileKey: string, nodeId: string, token: s
     throw new Error(`Figma API ${renderRes.status}: ${err}`);
   }
   const renderData = await renderRes.json();
-  const imageUrl = renderData.images?.[nodeId] ?? renderData.images?.[nodeId.replace("-", ":")];
+  const imageUrl =
+    renderData.images?.[nodeId] ??
+    renderData.images?.[nodeId.replace("-", ":")];
 
-  if (!imageUrl) {
-    throw new Error("Figma no devolvió una imagen para ese nodo. Verificá que el node-id sea correcto.");
-  }
+  if (!imageUrl) throw new Error("Figma no devolvió imagen para ese nodo. Verificá el node-id.");
 
-  // Download the rendered image
   const imgRes = await fetch(imageUrl);
   if (!imgRes.ok) throw new Error(`Error descargando imagen de Figma: ${imgRes.status}`);
   const buffer = await imgRes.arrayBuffer();
-  return {
-    base64: Buffer.from(buffer).toString("base64"),
-    mimeType: "image/png",
-  };
+  return { base64: Buffer.from(buffer).toString("base64"), mimeType: "image/png" };
 }
 
-async function analyzeWithOpenRouter(base64: string, mimeType: string, apiKey: string): Promise<string> {
+async function analyzeWithOpenRouter(base64: string, mimeType: string, apiKey: string) {
   const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       model: "nvidia/nemotron-nano-12b-v2-vl:free",
       messages: [
@@ -173,7 +199,7 @@ async function analyzeWithOpenRouter(base64: string, mimeType: string, apiKey: s
           role: "user",
           content: [
             { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64}` } },
-            { type: "text", text: PROMPT },
+            { type: "text", text: SYSTEM_PROMPT },
           ],
         },
       ],
@@ -188,6 +214,17 @@ async function analyzeWithOpenRouter(base64: string, mimeType: string, apiKey: s
   return data.choices?.[0]?.message?.content ?? "";
 }
 
+async function saveToHistory(entry: AnalysisEntry) {
+  try {
+    const redis = getRedis();
+    if (!redis) return;
+    await redis.lpush("ux_analyses", JSON.stringify(entry));
+    await redis.ltrim("ux_analyses", 0, 19); // keep last 20
+  } catch (e) {
+    console.error("Redis save error:", e);
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const openrouterKey = process.env.OPENROUTER_API_KEY;
@@ -199,40 +236,51 @@ export async function POST(request: NextRequest) {
 
     // --- Figma URL mode ---
     if (contentType.includes("application/json")) {
-      const { figmaUrl, figmaToken } = await request.json();
-
+      const { figmaUrl, figmaToken, thumbnail } = await request.json();
       const token = figmaToken || process.env.FIGMA_TOKEN;
-      if (!token) {
-        return NextResponse.json({ error: "Se necesita un Figma Personal Access Token." }, { status: 400 });
-      }
+      if (!token) return NextResponse.json({ error: "Se necesita un Figma Personal Access Token." }, { status: 400 });
 
       const parsed = parseFigmaUrl(figmaUrl);
-      if (!parsed) {
-        return NextResponse.json(
-          { error: "URL de Figma inválida. Debe incluir el node-id (ej: ?node-id=118:10566)." },
-          { status: 400 }
-        );
-      }
+      if (!parsed) return NextResponse.json({ error: "URL de Figma inválida. Debe incluir el node-id (ej: ?node-id=118:10566)." }, { status: 400 });
 
       const { base64, mimeType } = await fetchFigmaImageAsBase64(parsed.fileKey, parsed.nodeId, token);
       const analysis = await analyzeWithOpenRouter(base64, mimeType, openrouterKey);
+
+      await saveToHistory({
+        id: crypto.randomUUID(),
+        timestamp: Date.now(),
+        thumbnail: thumbnail || `data:image/png;base64,${base64.slice(0, 8000)}`,
+        analysis,
+        source: "figma",
+        figmaUrl,
+      });
+
       return NextResponse.json({ analysis });
     }
 
     // --- Image upload mode ---
     const formData = await request.formData();
     const imageFile = formData.get("image") as File;
-    if (!imageFile) {
-      return NextResponse.json({ error: "No se recibió imagen" }, { status: 400 });
-    }
+    const thumbnail = formData.get("thumbnail") as string | null;
+
+    if (!imageFile) return NextResponse.json({ error: "No se recibió imagen" }, { status: 400 });
 
     const bytes = await imageFile.arrayBuffer();
     const base64 = Buffer.from(bytes).toString("base64");
     const mimeType = imageFile.type || "image/jpeg";
 
     const analysis = await analyzeWithOpenRouter(base64, mimeType, openrouterKey);
-    return NextResponse.json({ analysis });
 
+    await saveToHistory({
+      id: crypto.randomUUID(),
+      timestamp: Date.now(),
+      thumbnail: thumbnail || `data:${mimeType};base64,${base64.slice(0, 8000)}`,
+      analysis,
+      source: "image",
+      filename: imageFile.name,
+    });
+
+    return NextResponse.json({ analysis });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     console.error("Error analyzing:", msg);
