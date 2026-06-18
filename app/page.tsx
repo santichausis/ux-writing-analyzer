@@ -2,9 +2,10 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import Image from "next/image";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import type { AnalysisEntry } from "@/lib/redis";
 
-// Generate a small thumbnail via Canvas (client-side, ~200px wide)
 function generateThumbnail(file: File): Promise<string> {
   return new Promise((resolve) => {
     const img = document.createElement("img");
@@ -23,33 +24,6 @@ function generateThumbnail(file: File): Promise<string> {
   });
 }
 
-function parseAnalysis(text: string) {
-  const lines = text.split("\n");
-  const result: { type: "heading" | "text" | "ok" | "error" | "badge-alta" | "badge-media" | "badge-baja" | "info"; content: string }[] = [];
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
-    if (/^#+\s/.test(trimmed)) {
-      result.push({ type: "heading", content: trimmed.replace(/^#+\s*/, "") });
-    } else if (trimmed.includes("✅")) {
-      result.push({ type: "ok", content: trimmed });
-    } else if (trimmed.includes("❌")) {
-      result.push({ type: "error", content: trimmed });
-    } else if (/Severidad:\s*Alta/i.test(trimmed)) {
-      result.push({ type: "badge-alta", content: trimmed });
-    } else if (/Severidad:\s*Media/i.test(trimmed)) {
-      result.push({ type: "badge-media", content: trimmed });
-    } else if (/Severidad:\s*Baja/i.test(trimmed)) {
-      result.push({ type: "badge-baja", content: trimmed });
-    } else if (/^[-*•]/.test(trimmed)) {
-      result.push({ type: "info", content: trimmed.replace(/^[-*•]\s*/, "") });
-    } else {
-      result.push({ type: "text", content: trimmed });
-    }
-  }
-  return result;
-}
-
 function timeAgo(ts: number) {
   const diff = Date.now() - ts;
   const m = Math.floor(diff / 60000);
@@ -58,6 +32,71 @@ function timeAgo(ts: number) {
   const h = Math.floor(m / 60);
   if (h < 24) return `Hace ${h}h`;
   return `Hace ${Math.floor(h / 24)}d`;
+}
+
+const markdownComponents = {
+  h1: ({ children }: React.HTMLAttributes<HTMLHeadingElement>) => (
+    <h1 className="text-base font-bold mt-5 mb-2 pt-4 border-t first:border-t-0 first:mt-0 first:pt-0" style={{ color: "var(--personal-dark)", borderColor: "var(--personal-light-gray)" }}>{children}</h1>
+  ),
+  h2: ({ children }: React.HTMLAttributes<HTMLHeadingElement>) => (
+    <h2 className="text-sm font-bold mt-5 mb-2 pt-4 border-t first:border-t-0 first:mt-0 first:pt-0" style={{ color: "var(--personal-dark)", borderColor: "var(--personal-light-gray)" }}>{children}</h2>
+  ),
+  h3: ({ children }: React.HTMLAttributes<HTMLHeadingElement>) => (
+    <h3 className="text-sm font-semibold mt-3 mb-1" style={{ color: "var(--personal-blue)" }}>{children}</h3>
+  ),
+  p: ({ children }: React.HTMLAttributes<HTMLParagraphElement>) => (
+    <p className="text-sm leading-relaxed mb-2" style={{ color: "#374151" }}>{children}</p>
+  ),
+  strong: ({ children }: React.HTMLAttributes<HTMLElement>) => (
+    <strong className="font-semibold" style={{ color: "var(--personal-dark)" }}>{children}</strong>
+  ),
+  ul: ({ children }: React.HTMLAttributes<HTMLUListElement>) => (
+    <ul className="space-y-1 mb-3 pl-1">{children}</ul>
+  ),
+  li: ({ children }: React.HTMLAttributes<HTMLLIElement>) => (
+    <li className="flex gap-2 text-sm leading-relaxed" style={{ color: "#374151" }}>
+      <span className="mt-1.5 w-1.5 h-1.5 rounded-full shrink-0" style={{ background: "var(--personal-blue)" }} />
+      <span>{children}</span>
+    </li>
+  ),
+  table: ({ children }: React.HTMLAttributes<HTMLTableElement>) => (
+    <div className="overflow-x-auto mb-4 rounded-xl border" style={{ borderColor: "var(--personal-light-gray)" }}>
+      <table className="w-full text-xs border-collapse">{children}</table>
+    </div>
+  ),
+  thead: ({ children }: React.HTMLAttributes<HTMLTableSectionElement>) => (
+    <thead style={{ background: "var(--personal-light-gray)" }}>{children}</thead>
+  ),
+  th: ({ children }: React.HTMLAttributes<HTMLTableCellElement>) => (
+    <th className="px-3 py-2 text-left font-semibold" style={{ color: "var(--personal-dark)" }}>{children}</th>
+  ),
+  td: ({ children }: React.HTMLAttributes<HTMLTableCellElement>) => (
+    <td className="px-3 py-2 border-t text-xs" style={{ borderColor: "var(--personal-light-gray)", color: "#374151" }}>{children}</td>
+  ),
+  blockquote: ({ children }: React.HTMLAttributes<HTMLQuoteElement>) => (
+    <blockquote className="border-l-4 pl-3 py-1 my-2 text-sm italic" style={{ borderColor: "var(--personal-accent)", color: "#6b7280" }}>{children}</blockquote>
+  ),
+  code: ({ children }: React.HTMLAttributes<HTMLElement>) => (
+    <code className="px-1.5 py-0.5 rounded text-xs font-mono" style={{ background: "var(--personal-light-gray)", color: "var(--personal-blue)" }}>{children}</code>
+  ),
+  hr: () => <hr className="my-4" style={{ borderColor: "var(--personal-light-gray)" }} />,
+};
+
+// Highlight severity badges inline in the markdown text
+function EnhancedMarkdown({ content }: { content: string }) {
+  // Pre-process: add visual markers for severity lines
+  const processed = content
+    .replace(/- Severidad:\s*Alta/gi, "- 🔴 **Severidad: Alta**")
+    .replace(/- Severidad:\s*Media/gi, "- 🟡 **Severidad: Media**")
+    .replace(/- Severidad:\s*Baja/gi, "- 🟢 **Severidad: Baja**")
+    .replace(/- ¿Requiere validación\?:\s*Sí/gi, "- ⚠️ **¿Requiere validación?: Sí**")
+    .replace(/- ¿Requiere validación\?:\s*No/gi, "- ✅ **¿Requiere validación?: No**");
+
+  return (
+    <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+      {processed}
+    </ReactMarkdown>
+  );
 }
 
 type Tab = "image" | "figma";
@@ -77,7 +116,6 @@ export default function Home() {
   const [history, setHistory] = useState<AnalysisEntry[]>([]);
   const [selectedEntry, setSelectedEntry] = useState<AnalysisEntry | null>(null);
 
-  // Restore last analysis from localStorage on mount
   useEffect(() => {
     try {
       const saved = localStorage.getItem("ux_last_analysis");
@@ -183,8 +221,6 @@ export default function Home() {
 
   const canAnalyze = tab === "image" ? !!image : !!figmaUrl;
   const handleAnalyze = tab === "image" ? handleAnalyzeImage : handleAnalyzeFigma;
-  const parsed = analysis ? parseAnalysis(analysis) : null;
-  const selectedParsed = selectedEntry ? parseAnalysis(selectedEntry.analysis) : null;
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: "var(--personal-bg)" }}>
@@ -208,6 +244,11 @@ export default function Home() {
           <p className="text-blue-200 text-base md:text-lg max-w-xl mx-auto">
             Subí una imagen o pegá un link de Figma y verificá si los textfields de datos personales cumplen con los estándares definidos.
           </p>
+          <div className="flex flex-wrap gap-2 justify-center mt-6">
+            {["Errores de contenido", "Consistencia", "Reglas implícitas", "Huecos", "Voz y tono", "Formato"].map((d) => (
+              <span key={d} className="text-xs px-3 py-1 rounded-full" style={{ background: "rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.8)" }}>{d}</span>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -310,9 +351,13 @@ export default function Home() {
 
           {/* Results panel */}
           <div className="rounded-2xl overflow-hidden shadow-sm border" style={{ background: "white", borderColor: "var(--personal-light-gray)", minHeight: "360px" }}>
-            <div className="px-6 pt-6 pb-4 border-b" style={{ borderColor: "var(--personal-light-gray)" }}>
+            <div className="px-6 pt-5 pb-4 border-b" style={{ borderColor: "var(--personal-light-gray)" }}>
               <h2 className="font-semibold text-base" style={{ color: "var(--personal-dark)" }}>Resultado del análisis</h2>
-              <p className="text-sm mt-1" style={{ color: "var(--personal-gray)" }}>Evaluado con la rúbrica de 6 dimensiones</p>
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {["Contenido", "Consistencia", "Reglas", "Huecos", "Voz/tono", "Formato"].map((d) => (
+                  <span key={d} className="text-xs px-2 py-0.5 rounded-full" style={{ background: "var(--personal-light-gray)", color: "var(--personal-blue)" }}>{d}</span>
+                ))}
+              </div>
             </div>
             <div className="p-6">
               {!analysis && !error && !isLoading && (
@@ -334,16 +379,13 @@ export default function Home() {
                   <strong>Error:</strong> {error}
                 </div>
               )}
-              {parsed && <AnalysisResult items={parsed} />}
+              {analysis && (
+                <div className="max-h-[560px] overflow-y-auto pr-1">
+                  <EnhancedMarkdown content={analysis} />
+                </div>
+              )}
             </div>
           </div>
-        </div>
-
-        {/* Pills */}
-        <div className="mt-8 flex flex-wrap gap-3 justify-center">
-          {["Nombre y apellido", "DNI y documento", "Número de trámite", "Email", "Teléfono"].map((tag) => (
-            <span key={tag} className="text-xs px-3 py-1.5 rounded-full font-medium" style={{ background: "var(--personal-light-gray)", color: "var(--personal-blue)" }}>{tag}</span>
-          ))}
         </div>
 
         {/* History */}
@@ -359,9 +401,13 @@ export default function Home() {
                   className="rounded-xl overflow-hidden border text-left transition-all hover:shadow-md hover:-translate-y-0.5 duration-150"
                   style={{ background: "white", borderColor: "var(--personal-light-gray)" }}
                 >
-                  <div className="relative w-full h-28 bg-gray-100">
-                    {entry.thumbnail && (
+                  <div className="relative w-full h-28" style={{ background: "var(--personal-light-gray)" }}>
+                    {entry.thumbnail ? (
                       <Image src={entry.thumbnail} alt="Análisis" fill className="object-cover" unoptimized />
+                    ) : (
+                      <div className="flex items-center justify-center h-full">
+                        <svg width="24" height="24" fill="none" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3" stroke="#9ca3af" strokeWidth="1.5"/><circle cx="8.5" cy="8.5" r="1.5" fill="#9ca3af"/><path d="m3 15 5-5 4 4 3-3 6 6" stroke="#9ca3af" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                      </div>
                     )}
                     <span className="absolute top-2 right-2 text-xs px-1.5 py-0.5 rounded font-medium"
                       style={{ background: entry.source === "figma" ? "rgba(0,50,160,0.85)" : "rgba(0,0,0,0.6)", color: "white" }}>
@@ -389,17 +435,20 @@ export default function Home() {
 
       {/* History modal */}
       {selectedEntry && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,10,40,0.6)", backdropFilter: "blur(4px)" }}
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "rgba(0,10,40,0.6)", backdropFilter: "blur(4px)" }}
           onClick={(e) => { if (e.target === e.currentTarget) setSelectedEntry(null); }}
         >
           <div className="w-full max-w-3xl rounded-2xl overflow-hidden shadow-2xl flex flex-col md:flex-row" style={{ background: "white", maxHeight: "90vh" }}>
-            {/* Image side */}
-            <div className="md:w-48 flex-shrink-0 bg-gray-100 relative min-h-40">
-              {selectedEntry.thumbnail && (
+            <div className="md:w-48 flex-shrink-0 relative min-h-40" style={{ background: "var(--personal-light-gray)" }}>
+              {selectedEntry.thumbnail ? (
                 <Image src={selectedEntry.thumbnail} alt="Análisis" fill className="object-cover" unoptimized />
+              ) : (
+                <div className="flex items-center justify-center h-full min-h-40">
+                  <svg width="32" height="32" fill="none" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3" stroke="#9ca3af" strokeWidth="1.5"/><circle cx="8.5" cy="8.5" r="1.5" fill="#9ca3af"/><path d="m3 15 5-5 4 4 3-3 6 6" stroke="#9ca3af" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                </div>
               )}
             </div>
-            {/* Content side */}
             <div className="flex flex-col flex-1 overflow-hidden">
               <div className="px-6 py-4 border-b flex items-start justify-between gap-4" style={{ borderColor: "var(--personal-light-gray)" }}>
                 <div>
@@ -413,60 +462,12 @@ export default function Home() {
                 </button>
               </div>
               <div className="p-6 overflow-y-auto flex-1">
-                {selectedParsed && <AnalysisResult items={selectedParsed} />}
+                <EnhancedMarkdown content={selectedEntry.analysis} />
               </div>
             </div>
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-type ParsedItem = { type: "heading" | "text" | "ok" | "error" | "badge-alta" | "badge-media" | "badge-baja" | "info"; content: string };
-
-function AnalysisResult({ items }: { items: ParsedItem[] }) {
-  return (
-    <div className="text-sm space-y-1 pr-1">
-      {items.map((item, i) => {
-        if (item.type === "heading") return (
-          <h3 key={i} className="font-bold text-sm mt-4 mb-1 pt-3 border-t first:border-t-0 first:mt-0 first:pt-0" style={{ color: "var(--personal-dark)", borderColor: "var(--personal-light-gray)" }}>{item.content}</h3>
-        );
-        if (item.type === "ok") return (
-          <div key={i} className="flex gap-2 py-1 px-2 rounded-lg" style={{ background: "#f0faf4" }}>
-            <span className="shrink-0">✅</span><span style={{ color: "#1a6b3a" }}>{item.content.replace("✅", "").trim()}</span>
-          </div>
-        );
-        if (item.type === "error") return (
-          <div key={i} className="flex gap-2 py-1 px-2 rounded-lg" style={{ background: "#fff5f5" }}>
-            <span className="shrink-0">❌</span><span style={{ color: "#c0392b" }}>{item.content.replace("❌", "").trim()}</span>
-          </div>
-        );
-        if (item.type === "badge-alta") return (
-          <div key={i} className="flex gap-2 items-center py-0.5">
-            <span className="text-xs font-bold px-2 py-0.5 rounded-full shrink-0" style={{ background: "#fef2f2", color: "#c0392b" }}>Alta</span>
-            <span style={{ color: "#374151" }}>{item.content.replace(/Severidad:\s*Alta/i, "").trim()}</span>
-          </div>
-        );
-        if (item.type === "badge-media") return (
-          <div key={i} className="flex gap-2 items-center py-0.5">
-            <span className="text-xs font-bold px-2 py-0.5 rounded-full shrink-0" style={{ background: "#fffbeb", color: "#b45309" }}>Media</span>
-            <span style={{ color: "#374151" }}>{item.content.replace(/Severidad:\s*Media/i, "").trim()}</span>
-          </div>
-        );
-        if (item.type === "badge-baja") return (
-          <div key={i} className="flex gap-2 items-center py-0.5">
-            <span className="text-xs font-bold px-2 py-0.5 rounded-full shrink-0" style={{ background: "#f0fdf4", color: "#16a34a" }}>Baja</span>
-            <span style={{ color: "#374151" }}>{item.content.replace(/Severidad:\s*Baja/i, "").trim()}</span>
-          </div>
-        );
-        if (item.type === "info") return (
-          <div key={i} className="flex gap-2 py-0.5 pl-2">
-            <span style={{ color: "var(--personal-blue)" }}>•</span><span style={{ color: "#374151" }}>{item.content}</span>
-          </div>
-        );
-        return <p key={i} style={{ color: "#374151" }} className="leading-relaxed">{item.content}</p>;
-      })}
     </div>
   );
 }
