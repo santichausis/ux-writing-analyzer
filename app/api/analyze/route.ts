@@ -1,4 +1,3 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextRequest, NextResponse } from "next/server";
 
 const UX_WRITING_KNOWLEDGE = `
@@ -107,10 +106,10 @@ const UX_WRITING_KNOWLEDGE = `
 
 export async function POST(request: NextRequest) {
   try {
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = process.env.OPENROUTER_API_KEY;
     if (!apiKey) {
       return NextResponse.json(
-        { error: "GEMINI_API_KEY no está configurada en las variables de entorno." },
+        { error: "OPENROUTER_API_KEY no está configurada en las variables de entorno." },
         { status: 500 }
       );
     }
@@ -124,24 +123,27 @@ export async function POST(request: NextRequest) {
 
     const bytes = await imageFile.arrayBuffer();
     const base64 = Buffer.from(bytes).toString("base64");
+    const mimeType = imageFile.type || "image/jpeg";
 
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
-
-    // Normalize mimeType — Vercel sometimes strips or changes it
-    const rawType = imageFile.type || "image/jpeg";
-    const mimeType = (
-      rawType.startsWith("image/") ? rawType : "image/jpeg"
-    ) as "image/jpeg" | "image/png" | "image/webp" | "image/gif";
-
-    const result = await model.generateContent([
-      {
-        inlineData: {
-          mimeType,
-          data: base64,
-        },
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
       },
-      `Sos un experto en UX Writing. Analizá esta imagen de un formulario o pantalla y comparala contra la siguiente base de conocimiento de UX Writing para textfields de datos personales:
+      body: JSON.stringify({
+        model: "meta-llama/llama-4-maverick:free",
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "image_url",
+                image_url: { url: `data:${mimeType};base64,${base64}` },
+              },
+              {
+                type: "text",
+                text: `Sos un experto en UX Writing. Analizá esta imagen de un formulario o pantalla y comparala contra la siguiente base de conocimiento de UX Writing para textfields de datos personales:
 
 ${UX_WRITING_KNOWLEDGE}
 
@@ -153,16 +155,24 @@ Tu análisis debe:
 5. Dar un resumen final con el porcentaje de cumplimiento
 
 Respondé en español, con formato estructurado y claro. Si la imagen no contiene ningún campo de datos personales, indicalo.`,
-    ]);
+              },
+            ],
+          },
+        ],
+      }),
+    });
 
-    const analysis = result.response.text();
+    if (!response.ok) {
+      const err = await response.text();
+      throw new Error(`OpenRouter ${response.status}: ${err}`);
+    }
+
+    const data = await response.json();
+    const analysis = data.choices?.[0]?.message?.content ?? "";
     return NextResponse.json({ analysis });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     console.error("Error analyzing image:", msg);
-    return NextResponse.json(
-      { error: `Error al analizar la imagen: ${msg}` },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: `Error al analizar la imagen: ${msg}` }, { status: 500 });
   }
 }
