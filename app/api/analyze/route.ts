@@ -126,12 +126,18 @@ export async function POST(request: NextRequest) {
     const base64 = Buffer.from(bytes).toString("base64");
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+
+    // Normalize mimeType — Vercel sometimes strips or changes it
+    const rawType = imageFile.type || "image/jpeg";
+    const mimeType = (
+      rawType.startsWith("image/") ? rawType : "image/jpeg"
+    ) as "image/jpeg" | "image/png" | "image/webp" | "image/gif";
 
     const result = await model.generateContent([
       {
         inlineData: {
-          mimeType: imageFile.type as "image/jpeg" | "image/png" | "image/webp",
+          mimeType,
           data: base64,
         },
       },
@@ -152,9 +158,10 @@ Respondé en español, con formato estructurado y claro. Si la imagen no contien
     const analysis = result.response.text();
     return NextResponse.json({ analysis });
   } catch (error) {
-    console.error("Error analyzing image:", error);
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error("Error analyzing image:", msg);
     return NextResponse.json(
-      { error: "Error al analizar la imagen. Verificá que GEMINI_API_KEY esté configurada." },
+      { error: `Error al analizar la imagen: ${msg}` },
       { status: 500 }
     );
   }
