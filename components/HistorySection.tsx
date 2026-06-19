@@ -39,31 +39,34 @@ function AnalysisModal({ entry, onClose }: ModalProps) {
       style={{ background: "rgba(5,44,80,0.6)", backdropFilter: "blur(4px)" }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="w-full max-w-3xl rounded-2xl overflow-hidden shadow-2xl flex flex-col md:flex-row"
+      <div className="w-full max-w-2xl rounded-2xl overflow-hidden shadow-2xl flex flex-col"
         style={{ background: "white", maxHeight: "90vh" }}>
-        <div className="md:w-48 flex-shrink-0 relative min-h-40" style={{ background: "var(--personal-bg-bold)" }}>
-          {entry.thumbnail
-            ? <Image src={entry.thumbnail} alt="Análisis" fill className="object-contain" unoptimized />
-            : <PlaceholderThumb />
-          }
+        {/* Header */}
+        <div className="px-6 py-4 border-b flex items-start justify-between gap-4 shrink-0"
+          style={{ borderColor: "var(--personal-border)" }}>
+          <div>
+            <p className="font-semibold text-sm" style={{ color: "var(--personal-dark)" }}>
+              {entry.filename || entry.figmaUrl || "Análisis"}
+            </p>
+            <p className="text-xs mt-0.5" style={{ color: "var(--personal-gray)" }}>{timeAgo(entry.timestamp)}</p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors mt-0.5 shrink-0">
+            <svg width="18" height="18" fill="none" viewBox="0 0 24 24">
+              <path d="M18 6 6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+            </svg>
+          </button>
         </div>
-        <div className="flex flex-col flex-1 overflow-hidden">
-          <div className="px-6 py-4 border-b flex items-start justify-between gap-4" style={{ borderColor: "var(--personal-border)" }}>
-            <div>
-              <p className="font-semibold text-sm" style={{ color: "var(--personal-dark)" }}>
-                {entry.filename || entry.figmaUrl || "Análisis"}
-              </p>
-              <p className="text-xs mt-0.5" style={{ color: "var(--personal-gray)" }}>{timeAgo(entry.timestamp)}</p>
-            </div>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors mt-0.5">
-              <svg width="18" height="18" fill="none" viewBox="0 0 24 24">
-                <path d="M18 6 6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-              </svg>
-            </button>
+
+        {/* Thumbnail */}
+        {entry.thumbnail && (
+          <div className="relative w-full shrink-0" style={{ height: "200px", background: "var(--personal-bg-bold)" }}>
+            <Image src={entry.thumbnail} alt="Análisis" fill className="object-contain" unoptimized />
           </div>
-          <div className="p-6 overflow-y-auto flex-1">
-            <StructuredResults content={entry.analysis} />
-          </div>
+        )}
+
+        {/* Analysis */}
+        <div className="p-6 overflow-y-auto flex-1">
+          <StructuredResults content={entry.analysis} />
         </div>
       </div>
     </div>
