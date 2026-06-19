@@ -43,7 +43,7 @@ function AnalysisModal({ entry, onClose }: ModalProps) {
         style={{ background: "white", maxHeight: "90vh" }}>
         <div className="md:w-48 flex-shrink-0 relative min-h-40" style={{ background: "var(--personal-bg-bold)" }}>
           {entry.thumbnail
-            ? <Image src={entry.thumbnail} alt="Análisis" fill className="object-cover" unoptimized />
+            ? <Image src={entry.thumbnail} alt="Análisis" fill className="object-contain" unoptimized />
             : <PlaceholderThumb />
           }
         </div>

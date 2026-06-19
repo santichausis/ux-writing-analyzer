@@ -49,17 +49,7 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<AnalysisEntry[]>([]);
 
-  // Restore last analysis from localStorage
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem("ux_last_analysis");
-      if (saved) {
-        const { analysis: a, thumbnail: t, preview: p } = JSON.parse(saved);
-        if (a) setAnalysis(a);
-        if (t) setThumbnail(t);
-        if (p) setPreview(p);
-      }
-    } catch {}
     fetchHistory().then(setHistory).catch(() => {});
   }, []);
 
@@ -91,7 +81,6 @@ export default function Home() {
     setThumbnail(null);
     setAnalysis(null);
     setError(null);
-    try { localStorage.removeItem("ux_last_analysis"); } catch {}
   }, []);
 
   const handleTabChange = useCallback((t: Tab) => {
@@ -99,10 +88,6 @@ export default function Home() {
     setAnalysis(null);
     setError(null);
   }, []);
-
-  const saveToLocal = (a: string) => {
-    try { localStorage.setItem("ux_last_analysis", JSON.stringify({ analysis: a, thumbnail, preview })); } catch {}
-  };
 
   const handleAnalyzeImage = async () => {
     if (!image) return;
@@ -117,7 +102,6 @@ export default function Home() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setAnalysis(data.analysis);
-      saveToLocal(data.analysis);
       refreshHistory();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al analizar");
@@ -140,7 +124,6 @@ export default function Home() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setAnalysis(data.analysis);
-      saveToLocal(data.analysis);
       refreshHistory();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al analizar");
