@@ -15,13 +15,33 @@ function timeAgo(ts: number) {
   return `Hace ${Math.floor(h / 24)}d`;
 }
 
+function quickStats(analysis: string) {
+  const alta  = (analysis.match(/Severidad[:\s*]*\*{0,2}Alta/gi)  || []).length;
+  const media = (analysis.match(/Severidad[:\s*]*\*{0,2}Media/gi) || []).length;
+  const baja  = (analysis.match(/Severidad[:\s*]*\*{0,2}Baja/gi)  || []).length;
+  const penalty = alta * 2.5 + media * 1.2 + baja * 0.5;
+  const score = Math.max(1, Math.min(10, Math.round(10 - penalty)));
+  return { alta, media, baja, score, total: alta + media + baja };
+}
+
+function ScoreDot({ score }: { score: number }) {
+  const color = score >= 8 ? "#16a34a" : score >= 5 ? "#f59e0b" : "#e53935";
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold"
+      style={{ background: "rgba(0,0,0,0.55)", color: "white", backdropFilter: "blur(4px)" }}>
+      <span className="w-2 h-2 rounded-full" style={{ background: color }} />
+      {score}/10
+    </span>
+  );
+}
+
 function PlaceholderThumb() {
   return (
-    <div className="flex items-center justify-center h-full">
-      <svg width="24" height="24" fill="none" viewBox="0 0 24 24">
-        <rect x="3" y="3" width="18" height="18" rx="3" stroke="#9ca3af" strokeWidth="1.5"/>
-        <circle cx="8.5" cy="8.5" r="1.5" fill="#9ca3af"/>
-        <path d="m3 15 5-5 4 4 3-3 6 6" stroke="#9ca3af" strokeWidth="1.5" strokeLinecap="round"/>
+    <div className="flex items-center justify-center h-full w-full">
+      <svg width="32" height="32" fill="none" viewBox="0 0 24 24">
+        <rect x="3" y="3" width="18" height="18" rx="3" stroke="#c8c6ca" strokeWidth="1.5"/>
+        <circle cx="8.5" cy="8.5" r="1.5" fill="#c8c6ca"/>
+        <path d="m3 15 5-5 4 4 3-3 6 6" stroke="#c8c6ca" strokeWidth="1.5" strokeLinecap="round"/>
       </svg>
     </div>
   );
@@ -59,7 +79,7 @@ function AnalysisModal({ entry, onClose }: ModalProps) {
 
         {/* Thumbnail */}
         {entry.thumbnail && (
-          <div className="relative w-full shrink-0" style={{ height: "200px", background: "var(--personal-bg-bold)" }}>
+          <div className="relative w-full shrink-0" style={{ height: "220px", background: "var(--personal-bg-bold)" }}>
             <Image src={entry.thumbnail} alt="Análisis" fill className="object-contain" unoptimized />
           </div>
         )}
@@ -87,35 +107,72 @@ export function HistorySection({ entries }: Props) {
       <section className="mt-14">
         <div className="flex items-center gap-3 mb-6">
           <h2 className="font-bold text-lg" style={{ color: "var(--personal-dark)" }}>Últimos análisis</h2>
-          <span className="text-xs px-2 py-0.5 rounded-full"
+          <span className="text-xs px-2 py-0.5 rounded-full font-medium"
             style={{ background: "var(--personal-bg-bold)", color: "var(--personal-blue)" }}>
             {entries.length}
           </span>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-          {entries.map((entry) => (
-            <button key={entry.id} onClick={() => setSelected(entry)}
-              className="rounded-xl overflow-hidden border text-left transition-all hover:shadow-md hover:-translate-y-0.5 duration-150"
-              style={{ background: "var(--personal-white)", borderColor: "var(--personal-border)" }}
-            >
-              <div className="relative w-full h-28" style={{ background: "var(--personal-bg-bold)" }}>
-                {entry.thumbnail
-                  ? <Image src={entry.thumbnail} alt="Análisis" fill className="object-cover" unoptimized />
-                  : <PlaceholderThumb />
-                }
-                <span className="absolute top-2 right-2 text-xs px-1.5 py-0.5 rounded font-medium"
-                  style={{ background: entry.source === "figma" ? "rgba(0,118,199,0.85)" : "rgba(5,44,80,0.7)", color: "white" }}>
-                  {entry.source === "figma" ? "Figma" : "IMG"}
-                </span>
-              </div>
-              <div className="p-3">
-                <p className="text-xs font-medium truncate" style={{ color: "var(--personal-dark)" }}>
-                  {entry.filename || entry.figmaUrl?.split("?")[0].split("/").pop() || "Pantalla"}
-                </p>
-                <p className="text-xs mt-0.5" style={{ color: "var(--personal-gray)" }}>{timeAgo(entry.timestamp)}</p>
-              </div>
-            </button>
-          ))}
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
+          {entries.map((entry) => {
+            const stats = quickStats(entry.analysis);
+            return (
+              <button
+                key={entry.id}
+                onClick={() => setSelected(entry)}
+                className="rounded-2xl overflow-hidden border text-left transition-all hover:shadow-lg hover:-translate-y-0.5 duration-150 group"
+                style={{ background: "var(--personal-white)", borderColor: "var(--personal-border)" }}
+              >
+                {/* Image area */}
+                <div className="relative w-full" style={{ height: "160px", background: "var(--personal-bg-bold)" }}>
+                  {entry.thumbnail
+                    ? <Image src={entry.thumbnail} alt="Análisis" fill className="object-contain" unoptimized />
+                    : <PlaceholderThumb />
+                  }
+                  {/* Overlays */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="absolute top-2.5 left-2.5">
+                    {stats.total > 0 && <ScoreDot score={stats.score} />}
+                  </div>
+                  <span className="absolute top-2.5 right-2.5 text-xs px-2 py-0.5 rounded-full font-medium"
+                    style={{ background: entry.source === "figma" ? "rgba(0,118,199,0.85)" : "rgba(5,44,80,0.75)", color: "white" }}>
+                    {entry.source === "figma" ? "Figma" : "IMG"}
+                  </span>
+                </div>
+
+                {/* Card footer */}
+                <div className="px-4 py-3">
+                  <p className="text-sm font-semibold truncate mb-0.5" style={{ color: "var(--personal-dark)" }}>
+                    {entry.filename || entry.figmaUrl?.split("?")[0].split("/").pop() || "Pantalla"}
+                  </p>
+                  <p className="text-xs mb-2.5" style={{ color: "var(--personal-gray)" }}>{timeAgo(entry.timestamp)}</p>
+
+                  {stats.total > 0 && (
+                    <div className="flex gap-1.5 flex-wrap">
+                      {stats.alta > 0 && (
+                        <span className="text-xs px-1.5 py-0.5 rounded-full font-medium"
+                          style={{ background: "#ffebee", color: "#e53935" }}>
+                          {stats.alta} Alta{stats.alta > 1 ? "s" : ""}
+                        </span>
+                      )}
+                      {stats.media > 0 && (
+                        <span className="text-xs px-1.5 py-0.5 rounded-full font-medium"
+                          style={{ background: "#fef3c7", color: "#b45309" }}>
+                          {stats.media} Media{stats.media > 1 ? "s" : ""}
+                        </span>
+                      )}
+                      {stats.baja > 0 && (
+                        <span className="text-xs px-1.5 py-0.5 rounded-full font-medium"
+                          style={{ background: "#dcfce7", color: "#15803d" }}>
+                          {stats.baja} Baja{stats.baja > 1 ? "s" : ""}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </button>
+            );
+          })}
         </div>
       </section>
 
