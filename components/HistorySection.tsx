@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import type { AnalysisEntry } from "@/lib/types";
-import { MarkdownRenderer } from "./MarkdownRenderer";
+import { StructuredResults } from "./StructuredResults";
 
 function timeAgo(ts: number) {
   const diff = Date.now() - ts;
@@ -62,7 +62,7 @@ function AnalysisModal({ entry, onClose }: ModalProps) {
             </button>
           </div>
           <div className="p-6 overflow-y-auto flex-1">
-            <MarkdownRenderer content={entry.analysis} />
+            <StructuredResults content={entry.analysis} />
           </div>
         </div>
       </div>

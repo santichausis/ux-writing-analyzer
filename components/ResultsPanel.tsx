@@ -1,6 +1,6 @@
 "use client";
 
-import { MarkdownRenderer } from "./MarkdownRenderer";
+import { StructuredResults } from "./StructuredResults";
 
 interface Props {
   analysis: string | null;
@@ -8,21 +8,12 @@ interface Props {
   isLoading: boolean;
 }
 
-const DIMENSIONS = ["Contenido", "Consistencia", "Reglas", "Huecos", "Voz/tono", "Formato"];
-
 export function ResultsPanel({ analysis, error, isLoading }: Props) {
   return (
-    <div className="rounded-2xl overflow-hidden shadow-sm border" style={{ background: "var(--personal-white)", borderColor: "var(--personal-border)", minHeight: "360px" }}>
+    <div className="rounded-2xl overflow-hidden shadow-sm border"
+      style={{ background: "var(--personal-white)", borderColor: "var(--personal-border)", minHeight: "360px" }}>
       <div className="px-6 pt-5 pb-4 border-b" style={{ borderColor: "var(--personal-border)" }}>
         <h2 className="font-semibold text-base" style={{ color: "var(--personal-dark)" }}>Resultado del análisis</h2>
-        <div className="flex flex-wrap gap-1.5 mt-2">
-          {DIMENSIONS.map((d) => (
-            <span key={d} className="text-xs px-2 py-0.5 rounded-full"
-              style={{ background: "var(--personal-bg-bold)", color: "var(--personal-blue)" }}>
-              {d}
-            </span>
-          ))}
-        </div>
       </div>
 
       <div className="p-6">
@@ -54,8 +45,8 @@ export function ResultsPanel({ analysis, error, isLoading }: Props) {
         )}
 
         {analysis && (
-          <div className="max-h-[560px] overflow-y-auto pr-1">
-            <MarkdownRenderer content={analysis} />
+          <div className="max-h-[680px] overflow-y-auto pr-1">
+            <StructuredResults content={analysis} />
           </div>
         )}
       </div>
